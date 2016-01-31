@@ -61,7 +61,7 @@ class Security:
 		if not target in self.receiver_keys:
 			key_loaded = self.load_other_pubkey(target)
 			if not key_loaded:
-				print("Error: could not load private key of '{}'.".format(target))
+				print("Error: could not load public key of '{}'.".format(target))
 				return
 		return self.receiver_keys[target].encrypt(message, 32)
 
@@ -71,3 +71,20 @@ class Security:
 				print("Error: could not locate your private key.")
 				return
 		return self.privkey.decrypt(data)
+
+	def calc_signature(self, message):
+		if not self.privkey:
+			if not self.load_my_privkey():
+				print("Error: could not locate your private key.")
+				return
+		sha_hash = SHA256.new(message).digest()
+		return self.privkey.sign(sha_hash, "")
+
+	def verify_signature(self, sender, message, signature):
+		if not sender in self.receiver_keys:
+			key_loaded = self.load_other_pubkey(sender)
+			if not key_loaded:
+				print("Error: could not load public key of '{}'.".format(sender))
+				return
+		sha_hash = SHA256.new(message).digest()
+		return self.receiver_keys[sender].sign(sha_hash, signature)
