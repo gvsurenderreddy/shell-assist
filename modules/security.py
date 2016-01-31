@@ -10,6 +10,7 @@ from Crypto.Hash import SHA256
 class Security:
 	"""To encrypt and/or sign communications between clients across a server"""
 
+	KEY_LENGTH = 4096
 	KEY_PREFIX = "assist_"
 
 	def __init__(self, username = "me", keypath = "./"):
@@ -20,7 +21,7 @@ class Security:
 		self.receiver_keys = dict()
 	
 	def create_key_pair(self):
-		self.privkey = RSA.generate(4096, Random.new().read)
+		self.privkey = RSA.generate(self.KEY_LENGTH, Random.new().read)
 		with open(self.keypath + self.KEY_PREFIX + self.username + "_priv", "w") as fpriv:
 			fpriv.write(self.privkey.exportKey())
 		with open(self.keypath + self.KEY_PREFIX + self.username + ".pub", "w") as fpub:
@@ -31,6 +32,7 @@ class Security:
 		if os.path.exists(keyfilename):
 			try:
 				self.privkey = RSA.importKey(open(keyfilename, "r").read())
+				return True
 			except:
 				self.privkey = None
 				print("Error: invalid private key.")
@@ -40,6 +42,7 @@ class Security:
 		if os.path.exists(keyfilename):
 			try:
 				self.pubkey = RSA.importKey(open(keyfilename, "r").read())
+				return True
 			except:
 				self.pubkey = None
 				print("Error: invalid public key.")
@@ -49,6 +52,22 @@ class Security:
 		if os.path.exists(keyfilename):
 			try:
 				self.receiver_keys[other] = RSA.importKey(open(keyfilename, "r").read())
+				return True
 			except:
 				self.receiver_keys[other] = None
 				print("Error: invalid public key.")
+
+	def encrypt(self, target, message):
+		if not target in self.receiver_keys:
+			key_loaded = self.load_other_pubkey(target)
+			if not key_loaded:
+				print("Error: could not load private key of '{}'.".format(target))
+				return
+		return self.receiver_keys[target].encrypt(message, 32)
+
+	def decrypt(self, data):
+		if not self.privkey:
+			if not self.load_my_privkey():
+				print("Error: could not locate your private key.")
+				return
+		return self.privkey.decrypt(data)
