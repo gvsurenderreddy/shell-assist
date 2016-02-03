@@ -9,7 +9,7 @@ class ForwardServer:
 	"""Forward-proxy server"""
 	def __init__(self, host, port):
 		self.host = host
-		self.port = port
+		self.port = int(port)
 		self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 	def start_server(self):
@@ -32,10 +32,10 @@ class ServerConnection:
 	
 	def __init__(self, host, port = 9876):
 		self.host = host
-		self.port = port
+		self.port = int(port)
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.server.bind((host, port))
+		self.server.bind((self.host, self.port))
 		self.server.listen(self.MAX_CONNECTIONS)
 
 	def listening_loop(self):
@@ -102,7 +102,7 @@ class ClientConnection:
 	
 	def __init__(self, host, port = 9876):
 		self.host = host
-		self.port = port
+		self.port = int(port)
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 
 	def connect_to_server(self):

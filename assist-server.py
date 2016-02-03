@@ -4,6 +4,9 @@ import sys
 import os
 import argparse
 
+from modules import security
+from modules import connection
+
 
 class Server:
 	"""assist-server class"""
