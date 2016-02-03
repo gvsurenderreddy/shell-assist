@@ -39,6 +39,7 @@ class ServerConnection:
 		self.server.listen(self.MAX_CONNECTIONS)
 
 	def listening_loop(self):
+		print("Listening to connections...")
 		self.input_list.append(self.server)
 		while True:
 			try:
@@ -111,10 +112,9 @@ class ClientConnection:
 			self.sock.connect((self.host, self.port))
 			line = input(str(self.username) + "> ")
 			while line.lower() != "exit":
-				self.sock.sendall(line)
+				self.sock.sendall(bytes(line))
 				line = input(str(self.username) + "> ")
 		except KeyboardInterrupt:
 			print("\nStopping client...")
 			self.sock.close()
-		finally:
 			sys.exit(0)
