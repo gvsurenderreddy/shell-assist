@@ -24,7 +24,7 @@ class ForwardServer:
 class ServerConnection:
 	"""For server connection and transmission of data"""
 
-	BUFFER_SIZE = 1024
+	BUFFER_SIZE = 4096
 	DELAY = 0.001
 	MAX_CONNECTIONS = 100
 	input_list = []
@@ -61,9 +61,8 @@ class ServerConnection:
 		#forward_sock = ForwardServer(self.host, self.port).start_server()
 		client_sock, client_addr = self.server.accept()
 		self.input_list.append(client_sock)
-		self.channels[client_sock] = client_addr[1]
-		print("{}:{} has connected.".format(client_addr[0], client_addr[1]))
-		print(client_sock.getpeername())
+		self.channels[client_sock] = client_addr
+		print("{} has connected.".format(client_addr))
 		# if forward_sock:
 		# 	print("{} has connected.".format(client_addr))
 		# 	self.input_list.append(client_sock)
@@ -77,7 +76,8 @@ class ServerConnection:
 
 
 	def on_recv(self, dest):
-		self.channels[dest].send(self.data)
+		print("Received from {}:\n{}".format(dest, self.data))
+		self.channels[dest].sendall(self.data)
 
 	def on_close(self, dest):
 		print("{} has disconnected.".format(dest.getpeername()))
@@ -100,15 +100,21 @@ class ServerConnection:
 class ClientConnection:
 	"""For client connection"""
 	
-	def __init__(self, host, port = 9876):
+	def __init__(self, host, port = 9876, username = 'me'):
 		self.host = host
 		self.port = int(port)
+		self.username = username
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 
 	def connect_to_server(self):
 		try:
 			self.sock.connect((self.host, self.port))
+			line = input(str(self.username) + "> ")
+			while line.lower() != "exit":
+				self.sock.sendall(line)
+				line = input(str(self.username) + "> ")
 		except KeyboardInterrupt:
 			print("\nStopping client...")
 			self.sock.close()
+		finally:
 			sys.exit(0)
