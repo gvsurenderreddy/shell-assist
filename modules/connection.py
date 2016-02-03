@@ -5,6 +5,12 @@ import socket
 import select
 
 
+ENCODING = "utf-16"
+BUFFER_SIZE = 4096
+DELAY = 0.001
+MAX_CONNECTIONS = 100
+
+
 class ForwardServer:
 	"""Forward-proxy server"""
 	def __init__(self, host, port):
@@ -24,9 +30,6 @@ class ForwardServer:
 class ServerConnection:
 	"""For server connection and transmission of data"""
 
-	BUFFER_SIZE = 4096
-	DELAY = 0.001
-	MAX_CONNECTIONS = 100
 	input_list = []
 	channels = {}
 	
@@ -36,14 +39,15 @@ class ServerConnection:
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.server.bind((self.host, self.port))
-		self.server.listen(self.MAX_CONNECTIONS)
+		self.server.listen(MAX_CONNECTIONS)
 
 	def listening_loop(self):
+		print("Assist-Server starting...")
 		print("Listening to connections...")
 		self.input_list.append(self.server)
 		while True:
 			try:
-				readlist, writelist, exceptlist = select.select(self.input_list, [], [], self.DELAY)
+				readlist, writelist, exceptlist = select.select(self.input_list, [], [], DELAY)
 			except Exception as e:
 				print(e)
 				break
@@ -51,7 +55,7 @@ class ServerConnection:
 				if ready_server == self.server:
 					self.on_accept()
 					break
-				self.data = ready_server.recv(self.BUFFER_SIZE)
+				self.data = ready_server.recv(BUFFER_SIZE)
 				if len(self.data):
 					self.on_recv(ready_server)
 				else:
@@ -77,8 +81,8 @@ class ServerConnection:
 
 
 	def on_recv(self, dest):
-		print("Received from {}:\n{}".format(dest, self.data))
-		self.channels[dest].sendall(self.data)
+		print("Received from {}: {}".format(self.channels[dest], self.data.decode(ENCODING)))
+		dest.sendall(self.data)
 
 	def on_close(self, dest):
 		print("{} has disconnected.".format(dest.getpeername()))
@@ -100,21 +104,51 @@ class ServerConnection:
 
 class ClientConnection:
 	"""For client connection"""
+
+	input_list = []
 	
 	def __init__(self, host, port = 9876, username = 'me'):
 		self.host = host
 		self.port = int(port)
 		self.username = username
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
+		self.input_list.append(0) # stdin
+		self.input_list.append(self.sock)
+
+	def prompt(self, name = ''):
+		if !name:
+			name = self.username
+		return str(name) + "> "
 
 	def connect_to_server(self):
 		try:
+			print("Assist-Client starting...")
+			readlist, writelist, exceptlist = select.select(self.input_list, [], [], DELAY)
 			self.sock.connect((self.host, self.port))
-			line = input(str(self.username) + "> ")
-			while line.lower() != "exit":
-				self.sock.sendall(bytes(line))
-				line = input(str(self.username) + "> ")
+			print("Connected to server.")
+			while True:
+				print(self.prompt(),)
+				for input_ready in readlist:
+					if input_ready == 0:
+						line = sys.stdin.readline()
+						if line:
+							self.sock.sendall(bytes(line, ENCODING))
+					elif input_ready == self.sock:
+						self.data = self.sock.recv(BUFFER_SIZE)
+						if data:
+							print(self.prompt("Server"), self.data.decode(ENCODING))
+						else:
+							break
+			print("Disconnecting...")
+			self.sock.close()
+			sys.exit(0)
+		except ConnectionRefusedError:
+			print("Error: Assist-Server not available on this address and/or port!")
+			sys.exit(1)
 		except KeyboardInterrupt:
 			print("\nStopping client...")
 			self.sock.close()
 			sys.exit(0)
+		except Exception as e:
+			print(e)
+			sys.exit(1)
