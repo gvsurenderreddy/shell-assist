@@ -18,6 +18,7 @@ class ForwardServer:
 			return self.forward
 		except Exception as e:
 			print(e)
+			return False
 
 
 class ServerConnection:
@@ -29,7 +30,7 @@ class ServerConnection:
 	input_list = []
 	channels = {}
 	
-	def __init__(self, host = "localhost", port = 9876):
+	def __init__(self, host, port = 9876):
 		self.host = host
 		self.port = port
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -40,8 +41,11 @@ class ServerConnection:
 	def listening_loop(self):
 		self.input_list.append(self.server)
 		while True:
-			ss = select.select
-			readlist, writelist, exceptlist = ss(self.input_list, [], [], self.DELAY)
+			try:
+				readlist, writelist, exceptlist = select.select(self.input_list, [], [], self.DELAY)
+			except Exception as e:
+				print(e)
+				break
 			for ready_server in readlist:
 				if ready_server == self.server:
 					self.on_accept()
@@ -54,18 +58,22 @@ class ServerConnection:
 					break
 
 	def on_accept(self):
-		forward_sock = ForwardServer(self.host, self.port).start_server()
+		#forward_sock = ForwardServer(self.host, self.port).start_server()
 		client_sock, client_addr = self.server.accept()
-		if forward_sock:
-			print("{} has connected.".format(client_addr))
-			self.input_list.append(client_sock)
-			self.input_list.append(forward_sock)
-			self.channels[client_sock] = forward_sock
-			self.channels[forward_sock] = client_sock
-		else:
-			print("Could not establish connection with server.")
-			print("Closing connection with client {}.".format(client_addr))
-			client_sock.close()
+		self.input_list.append(client_sock)
+		self.channels[client_sock] = client_addr[1]
+		print("{}:{} has connected.".format(client_addr[0], client_addr[1]))
+		print(client_sock.getpeername())
+		# if forward_sock:
+		# 	print("{} has connected.".format(client_addr))
+		# 	self.input_list.append(client_sock)
+		# 	self.input_list.append(forward_sock)
+		# 	self.channels[client_sock] = forward_sock
+		# 	self.channels[forward_sock] = client_sock
+		# else:
+		# 	print("Could not establish connection with server.")
+		# 	print("Closing connection with client {}.".format(client_addr))
+		# 	client_sock.close()
 
 
 	def on_recv(self, dest):
@@ -74,11 +82,11 @@ class ServerConnection:
 	def on_close(self, dest):
 		print("{} has disconnected.".format(dest.getpeername()))
 		self.input_list.remove(dest)
-		self.input_list.remove(self.channels[dest])
-		dest.close()
-		self.channels[dest].close()
-		del self.channels[self.channels[out]]
+		#self.input_list.remove(self.channels[dest])
+		#self.channels[dest].close()
+		#del self.channels[self.channels[out]]
 		del self.channels[dest]
+		dest.close()
 
 	def start_server(self):
 		try:
@@ -92,7 +100,7 @@ class ServerConnection:
 class ClientConnection:
 	"""For client connection"""
 	
-	def __init__(self, host = "localhost", port = 9876):
+	def __init__(self, host, port = 9876):
 		self.host = host
 		self.port = port
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
