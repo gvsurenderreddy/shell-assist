@@ -33,6 +33,7 @@ class ServerConnection:
 
 	input_list = []
 	channels = {}
+	usernames = {}
 	
 	def __init__(self, host, port = 9876):
 		self.host = host
@@ -70,8 +71,8 @@ class ServerConnection:
 		client_sock, client_addr = self.server.accept()
 		self.input_list.append(client_sock)
 		self.channels[client_sock] = client_addr
-		print("{} has connected.".format(client_addr))
-		client_sock.sendall(bytes("Welcome.", "utf-16"))
+		print("Client {} has connected.".format(client_addr))
+		client_sock.sendall(bytes("Welcome.", ENCODING))
 		# if forward_sock:
 		# 	print("{} has connected.".format(client_addr))
 		# 	self.input_list.append(client_sock)
@@ -85,11 +86,18 @@ class ServerConnection:
 
 
 	def on_recv(self, dest):
-		print("Received from {}: {}".format(self.channels[dest], self.data.decode(ENCODING)))
-		#dest.sendall(self.data)
+		self.data = self.data.decode(ENCODING)
+		if self.data.strip().lower().startswith("/setname "):
+			name = self.data.strip()[9:]
+			if name not in self.usernames:
+				self.usernames[dest] = name
+				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
+		else:
+			print("{}{}".format(self.prompt(self.usernames[dest]), self.data))
+			#dest.sendall(self.data)
 
 	def on_close(self, dest):
-		print("{} has disconnected.".format(dest.getpeername()))
+		print("Client {} has disconnected.".format(dest.getpeername()))
 		self.input_list.remove(dest)
 		#self.input_list.remove(self.channels[dest])
 		#self.channels[dest].close()
@@ -104,6 +112,9 @@ class ServerConnection:
 			print("\nStopping server...")
 			self.server.close()
 			sys.exit(0)
+
+	def prompt(self, name):
+		return "{}> ".format(name)
 
 
 class ClientConnection:
@@ -133,6 +144,9 @@ class ClientConnection:
 					else:
 						break
 
+	def send_name(self):
+		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
+
 	def prompt(self, name = ''):
 		if not name:
 			name = self.username
@@ -145,11 +159,12 @@ class ClientConnection:
 			self.listening_thread = threading.Thread(target=self.listen_receive)
 			self.listening_thread.start()
 			print(self.prompt("Client") + "Connected to server.")
+			self.send_name()
 			while True:
 				if not self.sock:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
-				line = input("me> ")
+				line = input(self.prompt())
 				if line.lower().strip() == "/exit":
 					break
 				if line.strip():
