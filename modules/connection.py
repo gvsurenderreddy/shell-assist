@@ -93,7 +93,7 @@ class ServerConnection:
 				self.usernames[dest] = name
 				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
 		else:
-			print("{}{}".format(self.prompt(self.usernames[dest]), self.data))
+			print("{}{}".format(self.prompt(self.usernames[dest], self.channels[dest][0]), self.data))
 			#dest.sendall(self.data)
 
 	def on_close(self, dest):
@@ -113,8 +113,8 @@ class ServerConnection:
 			self.server.close()
 			sys.exit(0)
 
-	def prompt(self, name):
-		return "{}> ".format(name)
+	def prompt(self, name, addr):
+		return "[{}@{}]> ".format(name, addr)
 
 
 class ClientConnection:
@@ -140,7 +140,7 @@ class ClientConnection:
 				if input_ready == self.sock:
 					self.data = self.sock.recv(BUFFER_SIZE)
 					if self.data:
-						print(self.prompt("Server"), self.data.decode(ENCODING))
+						print("{}{}".format(self.prompt("Server"), self.data.decode(ENCODING)))
 					else:
 						break
 
@@ -157,8 +157,9 @@ class ClientConnection:
 			print(self.prompt("Client") + "Starting...")
 			self.sock.connect((self.host, self.port))
 			self.listening_thread = threading.Thread(target=self.listen_receive)
+			self.listening_thread.daemon = True
 			self.listening_thread.start()
-			print(self.prompt("Client") + "Connected to server.")
+			print("{}Connected to server.".format(self.prompt("Client")))
 			self.send_name()
 			while True:
 				if not self.sock:
@@ -182,6 +183,10 @@ class ClientConnection:
 			self.sock.close()
 			self.loop = False
 			sys.exit(0)
+		except BrokenPipeError:
+			print("{}Server closed the connection.".format(self.prompt("Client")))
+			self.loop = False
+			sys.exit(1)
 		except Exception as e:
 			self.loop = False
 			print(e)
