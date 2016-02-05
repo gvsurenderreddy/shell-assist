@@ -12,22 +12,6 @@ DELAY = 0.1
 MAX_CONNECTIONS = 100
 
 
-class ForwardServer:
-	"""Forward-proxy server"""
-	def __init__(self, host, port):
-		self.host = host
-		self.port = int(port)
-		self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-	def start_server(self):
-		try:
-			self.forward.connect((self.host, self.port))
-			return self.forward
-		except Exception as e:
-			print(e)
-			return False
-
-
 class ServerConnection:
 	"""For server connection and transmission of data"""
 
@@ -67,23 +51,11 @@ class ServerConnection:
 				break
 
 	def on_accept(self):
-		#forward_sock = ForwardServer(self.host, self.port).start_server()
 		client_sock, client_addr = self.server.accept()
 		self.input_list.append(client_sock)
 		self.channels[client_sock] = client_addr
 		print("Client {} has connected.".format(client_addr))
 		client_sock.sendall(bytes("Welcome.", ENCODING))
-		# if forward_sock:
-		# 	print("{} has connected.".format(client_addr))
-		# 	self.input_list.append(client_sock)
-		# 	self.input_list.append(forward_sock)
-		# 	self.channels[client_sock] = forward_sock
-		# 	self.channels[forward_sock] = client_sock
-		# else:
-		# 	print("Could not establish connection with server.")
-		# 	print("Closing connection with client {}.".format(client_addr))
-		# 	client_sock.close()
-
 
 	def on_recv(self, dest):
 		self.data = self.data.decode(ENCODING)
@@ -94,14 +66,10 @@ class ServerConnection:
 				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
 		else:
 			print("{}{}".format(self.prompt(self.usernames[dest], self.channels[dest][0]), self.data))
-			#dest.sendall(self.data)
 
 	def on_close(self, dest):
 		print("Client {} has disconnected.".format(dest.getpeername()))
 		self.input_list.remove(dest)
-		#self.input_list.remove(self.channels[dest])
-		#self.channels[dest].close()
-		#del self.channels[self.channels[out]]
 		del self.channels[dest]
 		dest.close()
 
