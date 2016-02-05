@@ -18,6 +18,7 @@ class ServerConnection:
 	input_list = []
 	channels = {}
 	usernames = {}
+	usernames_reverse = {} # useful for reverse lookup
 	
 	def __init__(self, host, port = 9876):
 		self.host = host
@@ -50,6 +51,21 @@ class ServerConnection:
 				print(e)
 				break
 
+	def parse_command(self, dest, line):
+		line = line.strip()
+		l_line = line.lower()
+		if l_line.startswith("/setname ") or l_line.startswith("/setname\t"):
+			name = line[9:].lstrip()
+			if name not in self.usernames:
+				self.usernames[name] = dest
+				self.usernames_reverse[dest] = name
+				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
+			else:
+				# name already taken
+				pass
+		else:
+			print("{}{}".format(self.prompt(self.usernames_reverse[dest], self.channels[dest][0]), line))
+
 	def on_accept(self):
 		client_sock, client_addr = self.server.accept()
 		self.input_list.append(client_sock)
@@ -59,13 +75,7 @@ class ServerConnection:
 
 	def on_recv(self, dest):
 		self.data = self.data.decode(ENCODING)
-		if self.data.strip().lower().startswith("/setname "):
-			name = self.data.strip()[9:]
-			if name not in self.usernames:
-				self.usernames[dest] = name
-				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
-		else:
-			print("{}{}".format(self.prompt(self.usernames[dest], self.channels[dest][0]), self.data))
+		self.parse_command(dest, self.data)
 
 	def on_close(self, dest):
 		print("Client {} has disconnected.".format(dest.getpeername()))
