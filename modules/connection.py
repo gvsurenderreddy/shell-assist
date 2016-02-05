@@ -123,7 +123,8 @@ class ClientConnection:
 	input_list = []
 	
 	def __init__(self, host, port = 9876, username = 'me'):
-		self.loop = True
+		self.listen_loop = True
+		self.connect_loop = True
 		self.host = host
 		self.port = int(port)
 		self.username = username
@@ -133,7 +134,7 @@ class ClientConnection:
 
 	def listen_receive(self):
 		readlist, writelist, exceptlist = select.select(self.input_list, [], [], DELAY)
-		while self.loop:
+		while self.listen_loop:
 			if not self.sock:
 				break
 			for input_ready in readlist:
@@ -152,6 +153,28 @@ class ClientConnection:
 			name = self.username
 		return str(name) + "> "
 
+	def parse_command(self, sock, line):
+		line = line.strip()
+		l_line = line.lower()
+		if l_line == "/exit" or l_line == "/quit":
+			self.connect_loop = False
+		elif l_line == "/list":
+			pass
+		elif l_line.startswith("/list ") or l_line.startswith("/list\t"):
+			args = line[6:].lstrip()
+			pass
+		elif l_line.startswith("/chat ") or l_line.startswith("/chat\t"):
+			args = line[6:].lstrip()
+			pass
+		elif l_line.startswith("/shell ") or l_line.startswith("/shell\t"):
+			args = line[6:].lstrip()
+			pass
+		elif l_line.startswith("/send ") or l_line.startswith("/send\t"):
+			args = line[6:].lstrip()
+			pass
+		if line and self.connect_loop:
+			sock.sendall(bytes(line, ENCODING))
+
 	def connect_to_server(self):
 		try:
 			print(self.prompt("Client") + "Starting...")
@@ -161,33 +184,30 @@ class ClientConnection:
 			self.listening_thread.start()
 			print("{}Connected to server.".format(self.prompt("Client")))
 			self.send_name()
-			while True:
+			while self.connect_loop:
 				if not self.sock:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
 				line = input(self.prompt())
-				if line.lower().strip() == "/exit":
-					break
-				if line.strip():
-					self.sock.sendall(bytes(line, ENCODING))
+				self.parse_command(self.sock, line)
 			print(self.prompt("Client") + "Disconnecting...")
 			self.sock.close()
-			self.loop = False
+			self.listen_loop = False
 			sys.exit(0)
 		except ConnectionRefusedError:
 			print(self.prompt("Client") + "Error: Assist-Server not available on this address and/or port!")
-			self.loop = False
+			self.listen_loop = False
 			sys.exit(1)
 		except KeyboardInterrupt:
 			print("\n" + self.prompt("Client") + "Exiting...")
 			self.sock.close()
-			self.loop = False
+			self.listen_loop = False
 			sys.exit(0)
 		except BrokenPipeError:
 			print("{}Server closed the connection.".format(self.prompt("Client")))
-			self.loop = False
+			self.listen_loop = False
 			sys.exit(1)
 		except Exception as e:
-			self.loop = False
+			self.listen_loop = False
 			print(e)
 			sys.exit(1)
