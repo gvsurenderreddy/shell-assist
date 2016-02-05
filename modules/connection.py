@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import random
 import socket
 import select
 import threading
@@ -55,7 +56,7 @@ class ServerConnection:
 		random.seed()
 		return "Guest{}".format(random.randrange(100000, 1000000))
 
-	def parse_command(self, dest, line):
+	def parse_recv_command(self, dest, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line.startswith("/setname ") or l_line.startswith("/setname\t"):
@@ -99,10 +100,13 @@ class ServerConnection:
 
 	def on_recv(self, dest):
 		self.data = self.data.decode(ENCODING)
-		self.parse_command(dest, self.data)
+		self.parse_recv_command(dest, self.data)
 
 	def on_close(self, dest):
 		print("Client {} has disconnected.".format(dest.getpeername()))
+		name = self.usernames_reverse[dest]
+		del self.usernames_reverse[dest]
+		del self.usernames[name]
 		self.input_list.remove(dest)
 		del self.channels[dest]
 		dest.close()
@@ -164,7 +168,7 @@ class ClientConnection:
 			self.username = line[15:]
 			print(self.prompt())
 		elif l_line.startswith("///namedenied///"):
-			print("{}Name already in use.".format(self.prompt("Client")))
+			print("{}Name already in use.".format(self.prompt("Server")))
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
 
@@ -203,7 +207,7 @@ class ClientConnection:
 				if not self.sock:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
-				line = input(self.prompt())
+				line = input()
 				self.parse_sent_command(self.sock, line)
 			print(self.prompt("Client") + "Disconnecting...")
 			self.sock.close()
