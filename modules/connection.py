@@ -51,19 +51,43 @@ class ServerConnection:
 				print(e)
 				break
 
+	def generate_guestname(self):
+		random.seed()
+		return "Guest{}".format(random.randrange(100000, 1000000))
+
 	def parse_command(self, dest, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line.startswith("/setname ") or l_line.startswith("/setname\t"):
+			# /setname command
 			name = line[9:].lstrip()
-			if name not in self.usernames:
+			if name not in self.usernames and dest in self.usernames_reverse:
+				# client attempting to change name
 				self.usernames[name] = dest
 				self.usernames_reverse[dest] = name
+				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
+				print("Client {} changed name to '{}'.".format(self.channels[dest], name))
+			elif name not in self.usernames:
+				# client choosing name upon connect
+				self.usernames[name] = dest
+				self.usernames_reverse[dest] = name
+				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
+			elif dest not in self.usernames_reverse:
+				# name already taken, but generate guest name
+				name = self.generate_guestname()
+				self.usernames[name] = dest
+				self.usernames_reverse[dest] = name
+				dest.sendall(bytes("///nameguest///{}".format(name), ENCODING))
+				print("Client {} force-changed name to '{}'.".format(self.channels[dest], name))
 			else:
 				# name already taken
-				pass
+				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
+		elif l_line.startswith("/"):
+			# unrecognized command
+			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
 		else:
+			# not a command
 			print("{}{}".format(self.prompt(self.usernames_reverse[dest], self.channels[dest][0]), line))
 
 	def on_accept(self):
@@ -118,10 +142,7 @@ class ClientConnection:
 			for input_ready in readlist:
 				if input_ready == self.sock:
 					self.data = self.sock.recv(BUFFER_SIZE)
-					if self.data:
-						print("{}{}".format(self.prompt("Server"), self.data.decode(ENCODING)))
-					else:
-						break
+					self.parse_recv_command(self.data.decode(ENCODING))
 
 	def send_name(self):
 		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
@@ -131,7 +152,23 @@ class ClientConnection:
 			name = self.username
 		return str(name) + "> "
 
-	def parse_command(self, sock, line):
+	def parse_recv_command(self, line):
+		line = line.strip()
+		l_line = line.lower()
+		if l_line.startswith("///error///"):
+			print("Error: {}".format(line[11:]))
+		elif l_line.startswith("///nameack///"):
+			self.username = line[13:]
+			print(self.prompt())
+		elif l_line.startswith("///nameguest///"):
+			self.username = line[15:]
+			print(self.prompt())
+		elif l_line.startswith("///namedenied///"):
+			print("{}Name already in use.".format(self.prompt("Client")))
+		elif line:
+			print("{}{}".format(self.prompt("Server"), line))
+
+	def parse_sent_command(self, sock, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line == "/exit" or l_line == "/quit":
@@ -167,7 +204,7 @@ class ClientConnection:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
 				line = input(self.prompt())
-				self.parse_command(self.sock, line)
+				self.parse_sent_command(self.sock, line)
 			print(self.prompt("Client") + "Disconnecting...")
 			self.sock.close()
 			self.listen_loop = False
