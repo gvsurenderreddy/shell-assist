@@ -66,6 +66,8 @@ class ServerConnection:
 				# client attempting to change name
 				self.usernames[name] = dest
 				self.usernames_reverse[dest] = name
+				old_name = self.usernames_reverse[dest]
+				del self.usernames[old_name]
 				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} changed name to '{}'.".format(self.channels[dest], name))
 			elif name not in self.usernames:
@@ -84,7 +86,15 @@ class ServerConnection:
 			else:
 				# name already taken
 				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
+		elif l_line == "///list///":
+			output = "List of online users:"
+			for user in self.usernames:
+				output += "\n" + user
+				dest.sendall(bytes(output, ENCODING))
+		elif l_line.startswith("///listpattern///"):
+			pass
 		elif l_line.startswith("///chat///"):
+			# for chat window
 			parts = line.split("///")
 			if parts[2] in self.usernames:
 				self.usernames[parts[2]].sendall(bytes("///chat///{}///{}".format(
@@ -171,10 +181,10 @@ class ClientConnection:
 			print("Error: {}".format(line[11:]))
 		elif l_line.startswith("///nameack///"):
 			self.username = line[13:]
-			print(self.prompt())
+			print("{}Your name was set to '{}'.".format(self.prompt("Client"), self.username))
 		elif l_line.startswith("///nameguest///"):
 			self.username = line[15:]
-			print(self.prompt())
+			print("{}Your name was changed to '{}'.".format(self.prompt("Client"), self.username))
 		elif l_line.startswith("///namedenied///"):
 			print("{}Name already in use.".format(self.prompt("Server")))
 		elif l_line.startswith("///chat///"):
@@ -191,10 +201,10 @@ class ClientConnection:
 		if l_line == "/exit" or l_line == "/quit":
 			self.connect_loop = False
 		elif l_line == "/list":
-			pass
+			line = "///list///"
 		elif l_line.startswith("/list ") or l_line.startswith("/list\t"):
 			args = line[6:].lstrip()
-			pass
+			line = "///listpattern///{}".format(args)
 		elif l_line.startswith("/chat ") or l_line.startswith("/chat\t"):
 			args = line[6:].lstrip()
 			self.mode = ["chat", args]
@@ -210,7 +220,7 @@ class ClientConnection:
 			self.mode = ["", ""]
 			line = ""
 		if line and self.connect_loop:
-			if self.mode[0] == "chat":
+			if self.mode[0] == "chat" and not line.startswith("///"):
 				appended_line = "///chat///{}///".format(self.mode[1]) + line
 			else:
 				appended_line = line
