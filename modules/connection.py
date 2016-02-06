@@ -56,7 +56,7 @@ class ServerConnection:
 		random.seed()
 		return "Guest{}".format(random.randrange(100000, 1000000))
 
-	def parse_recv_command(self, dest, line):
+	def server_parse_recv_command(self, dest, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line.startswith("/setname ") or l_line.startswith("/setname\t"):
@@ -84,6 +84,13 @@ class ServerConnection:
 			else:
 				# name already taken
 				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
+		elif l_line.startswith("///chat///"):
+			parts = line.split("///")
+			if parts[1] in self.usernames:
+				self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
+					self.usernames_reverse[dest], parts[2]), ENCODING))
+			else:
+				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
 		elif l_line.startswith("/"):
 			# unrecognized command
 			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
@@ -100,7 +107,7 @@ class ServerConnection:
 
 	def on_recv(self, dest):
 		self.data = self.data.decode(ENCODING)
-		self.parse_recv_command(dest, self.data)
+		self.server_parse_recv_command(dest, self.data)
 
 	def on_close(self, dest):
 		print("Client {} has disconnected.".format(dest.getpeername()))
@@ -134,6 +141,7 @@ class ClientConnection:
 		self.host = host
 		self.port = int(port)
 		self.username = username
+		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 		#self.input_list.append(sys.stdin)
 		self.input_list.append(self.sock)
@@ -146,7 +154,7 @@ class ClientConnection:
 			for input_ready in readlist:
 				if input_ready == self.sock:
 					self.data = self.sock.recv(BUFFER_SIZE)
-					self.parse_recv_command(self.data.decode(ENCODING))
+					self.client_parse_recv_command(self.data.decode(ENCODING))
 
 	def send_name(self):
 		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
@@ -156,7 +164,7 @@ class ClientConnection:
 			name = self.username
 		return str(name) + "> "
 
-	def parse_recv_command(self, line):
+	def client_parse_recv_command(self, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line.startswith("///error///"):
@@ -169,10 +177,15 @@ class ClientConnection:
 			print(self.prompt())
 		elif l_line.startswith("///namedenied///"):
 			print("{}Name already in use.".format(self.prompt("Server")))
+		elif l_line.startswith("///chat///"):
+			parts = line.split("///")
+			print("{}{}".format(self.prompt(parts[1]), parts[2]))
+		elif l_line.startswith("///usernone///"):
+			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
 
-	def parse_sent_command(self, sock, line):
+	def client_parse_sent_command(self, sock, line):
 		line = line.strip()
 		l_line = line.lower()
 		if l_line == "/exit" or l_line == "/quit":
@@ -184,15 +197,23 @@ class ClientConnection:
 			pass
 		elif l_line.startswith("/chat ") or l_line.startswith("/chat\t"):
 			args = line[6:].lstrip()
-			pass
+			self.mode = ["chat", args]
+			line = ""
 		elif l_line.startswith("/shell ") or l_line.startswith("/shell\t"):
-			args = line[6:].lstrip()
+			args = line[7:].lstrip()
 			pass
 		elif l_line.startswith("/send ") or l_line.startswith("/send\t"):
 			args = line[6:].lstrip()
 			pass
+		elif l_line == "/close":
+			# close chat, shell or file sending
+			self.mode = ["", ""]
 		if line and self.connect_loop:
-			sock.sendall(bytes(line, ENCODING))
+			if self.mode[0] == "chat":
+				appended_line = "///chat///{}///".format(self.mode[1]) + line
+			else:
+				appended_line = line
+			sock.sendall(bytes(appended_line, ENCODING))
 
 	def connect_to_server(self):
 		try:
@@ -208,7 +229,7 @@ class ClientConnection:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
 				line = input()
-				self.parse_sent_command(self.sock, line)
+				self.client_parse_sent_command(self.sock, line)
 			print(self.prompt("Client") + "Disconnecting...")
 			self.sock.close()
 			self.listen_loop = False
