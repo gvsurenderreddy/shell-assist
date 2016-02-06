@@ -86,11 +86,11 @@ class ServerConnection:
 				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
 		elif l_line.startswith("///chat///"):
 			parts = line.split("///")
-			if parts[1] in self.usernames:
-				self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
-					self.usernames_reverse[dest], parts[2]), ENCODING))
+			if parts[2] in self.usernames:
+				self.usernames[parts[2]].sendall(bytes("///chat///{}///{}".format(
+					self.usernames_reverse[dest], parts[3]), ENCODING))
 			else:
-				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
+				dest.sendall(bytes("///usernone///{}".format(parts[2]), ENCODING))
 		elif l_line.startswith("/"):
 			# unrecognized command
 			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
@@ -179,7 +179,7 @@ class ClientConnection:
 			print("{}Name already in use.".format(self.prompt("Server")))
 		elif l_line.startswith("///chat///"):
 			parts = line.split("///")
-			print("{}{}".format(self.prompt(parts[1]), parts[2]))
+			print("{}{}".format(self.prompt(parts[2]), parts[3]))
 		elif l_line.startswith("///usernone///"):
 			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
 		elif line:
@@ -208,6 +208,7 @@ class ClientConnection:
 		elif l_line == "/close":
 			# close chat, shell or file sending
 			self.mode = ["", ""]
+			line = ""
 		if line and self.connect_loop:
 			if self.mode[0] == "chat":
 				appended_line = "///chat///{}///".format(self.mode[1]) + line
