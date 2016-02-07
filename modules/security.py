@@ -10,25 +10,24 @@ from Crypto.Hash import SHA256
 class Security:
 	"""To encrypt and/or sign communications between clients across a server"""
 
-	KEY_LENGTH = 4096
 	KEY_PREFIX = "assist_"
 
-	def __init__(self, username = "me", keypath = "./"):
-		self.username = str(username)
+	def __init__(self, nodename, keypath = "./"):
+		self.nodename = str(nodename)
 		self.keypath = keypath
 		self.privkey = None
 		self.pubkey = None
 		self.receiver_keys = dict()
 	
-	def create_key_pair(self):
-		self.privkey = RSA.generate(self.KEY_LENGTH, Random.new().read)
-		with open(self.keypath + self.KEY_PREFIX + self.username + "_priv", "w") as fpriv:
+	def create_key_pair(self, keylength = 4096):
+		self.privkey = RSA.generate(keylength, Random.new().read)
+		with open(self.keypath + self.KEY_PREFIX + self.nodename + "_priv", "w") as fpriv:
 			fpriv.write(self.privkey.exportKey())
-		with open(self.keypath + self.KEY_PREFIX + self.username + ".pub", "w") as fpub:
+		with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
 			fpub.write(self.privkey.publickey().exportKey())
 
 	def load_my_privkey(self):
-		keyfilename = self.keypath + self.KEY_PREFIX + self.username + "_priv"
+		keyfilename = self.keypath + self.KEY_PREFIX + self.nodename + "_priv"
 		if os.path.exists(keyfilename):
 			try:
 				self.privkey = RSA.importKey(open(keyfilename, "r").read())
@@ -38,7 +37,7 @@ class Security:
 				print("Error: invalid private key.")
 
 	def load_my_pubkey(self):
-		keyfilename = self.keypath + self.KEY_PREFIX + self.username + ".pub"
+		keyfilename = self.keypath + self.KEY_PREFIX + self.nodename + ".pub"
 		if os.path.exists(keyfilename):
 			try:
 				self.pubkey = RSA.importKey(open(keyfilename, "r").read())
@@ -47,7 +46,7 @@ class Security:
 				self.pubkey = None
 				print("Error: invalid public key.")
 
-	def load_other_pubkey(self, other = "anon"):
+	def load_other_pubkey(self, other):
 		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
 		if os.path.exists(keyfilename):
 			try:
