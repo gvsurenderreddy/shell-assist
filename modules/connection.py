@@ -59,6 +59,7 @@ class ServerConnection:
 	def server_parse_recv_command(self, dest, line):
 		line = line.strip()
 		l_line = line.lower()
+
 		if l_line.startswith("/setname ") or l_line.startswith("/setname\t"):
 			# /setname command
 			name = line[9:].lstrip()
@@ -70,12 +71,14 @@ class ServerConnection:
 				del self.usernames[old_name]
 				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} changed name to '{}'.".format(self.channels[dest], name))
+
 			elif name not in self.usernames:
 				# client choosing name upon connect
 				self.usernames[name] = dest
 				self.usernames_reverse[dest] = name
 				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
+
 			elif dest not in self.usernames_reverse:
 				# name already taken, but generate guest name
 				name = self.generate_guestname()
@@ -83,16 +86,20 @@ class ServerConnection:
 				self.usernames_reverse[dest] = name
 				dest.sendall(bytes("///nameguest///{}".format(name), ENCODING))
 				print("Client {} force-changed name to '{}'.".format(self.channels[dest], name))
+
 			else:
 				# name already taken
 				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
+
 		elif l_line == "///list///":
 			output = "List of online users:"
 			for user in self.usernames:
 				output += "\n" + user
-				dest.sendall(bytes(output, ENCODING))
+			dest.sendall(bytes(output, ENCODING))
+
 		elif l_line.startswith("///listpattern///"):
 			pass
+
 		elif l_line.startswith("///chat///"):
 			# for chat window
 			parts = line.split("///")
@@ -101,9 +108,11 @@ class ServerConnection:
 					self.usernames_reverse[dest], parts[3]), ENCODING))
 			else:
 				dest.sendall(bytes("///usernone///{}".format(parts[2]), ENCODING))
+
 		elif l_line.startswith("/"):
 			# unrecognized command
 			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
+
 		else:
 			# not a command
 			print("{}{}".format(self.prompt(self.usernames_reverse[dest], self.channels[dest][0]), line))
@@ -153,7 +162,6 @@ class ClientConnection:
 		self.username = username
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
-		#self.input_list.append(sys.stdin)
 		self.input_list.append(self.sock)
 
 	def listen_receive(self):
@@ -177,48 +185,63 @@ class ClientConnection:
 	def client_parse_recv_command(self, line):
 		line = line.strip()
 		l_line = line.lower()
+
 		if l_line.startswith("///error///"):
 			print("Error: {}".format(line[11:]))
+
 		elif l_line.startswith("///nameack///"):
 			self.username = line[13:]
 			print("{}Your name was set to '{}'.".format(self.prompt("Client"), self.username))
+
 		elif l_line.startswith("///nameguest///"):
 			self.username = line[15:]
 			print("{}Your name was changed to '{}'.".format(self.prompt("Client"), self.username))
+
 		elif l_line.startswith("///namedenied///"):
 			print("{}Name already in use.".format(self.prompt("Server")))
+
 		elif l_line.startswith("///chat///"):
 			parts = line.split("///")
 			print("{}{}".format(self.prompt(parts[2]), parts[3]))
+
 		elif l_line.startswith("///usernone///"):
 			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
+
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
 
 	def client_parse_sent_command(self, sock, line):
 		line = line.strip()
 		l_line = line.lower()
+
 		if l_line == "/exit" or l_line == "/quit":
 			self.connect_loop = False
+
 		elif l_line == "/list":
 			line = "///list///"
+
 		elif l_line.startswith("/list ") or l_line.startswith("/list\t"):
 			args = line[6:].lstrip()
 			line = "///listpattern///{}".format(args)
+
 		elif l_line.startswith("/chat ") or l_line.startswith("/chat\t"):
 			args = line[6:].lstrip()
 			self.mode = ["chat", args]
 			line = ""
+
 		elif l_line.startswith("/shell ") or l_line.startswith("/shell\t"):
 			args = line[7:].lstrip()
 			pass
+
 		elif l_line.startswith("/send ") or l_line.startswith("/send\t"):
 			args = line[6:].lstrip()
 			pass
+
 		elif l_line == "/close":
 			# close chat, shell or file sending
 			self.mode = ["", ""]
 			line = ""
+
 		if line and self.connect_loop:
 			if self.mode[0] == "chat" and not line.startswith("///"):
 				appended_line = "///chat///{}///".format(self.mode[1]) + line
@@ -235,29 +258,35 @@ class ClientConnection:
 			self.listening_thread.start()
 			print("{}Connected to server.".format(self.prompt("Client")))
 			self.send_name()
+
 			while self.connect_loop:
 				if not self.sock:
 					print(self.prompt("Client") + "Server disconnected.")
 					break
 				line = input()
 				self.client_parse_sent_command(self.sock, line)
+
 			print(self.prompt("Client") + "Disconnecting...")
 			self.sock.close()
 			self.listen_loop = False
 			sys.exit(0)
+
 		except ConnectionRefusedError:
 			print(self.prompt("Client") + "Error: Assist-Server not available on this address and/or port!")
 			self.listen_loop = False
 			sys.exit(1)
+
 		except KeyboardInterrupt:
 			print("\n" + self.prompt("Client") + "Exiting...")
 			self.sock.close()
 			self.listen_loop = False
 			sys.exit(0)
+
 		except BrokenPipeError:
 			print("{}Server closed the connection.".format(self.prompt("Client")))
 			self.listen_loop = False
 			sys.exit(1)
+
 		except Exception as e:
 			self.listen_loop = False
 			print(e)
