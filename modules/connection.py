@@ -5,6 +5,7 @@ import random
 import socket
 import select
 import threading
+import re
 
 
 ENCODING = "utf-16"
@@ -98,7 +99,12 @@ class ServerConnection:
 			dest.sendall(bytes(output, ENCODING))
 
 		elif l_line.startswith("///listpattern///"):
-			pass
+			line = "^" + line[17:].replace("*", ".*") + "$"
+			output = "List of matched online users:"
+			for user in self.usernames:
+				if re.match(line, user, re.IGNORECASE):
+					output += "\n" + user
+			dest.sendall(bytes(output, ENCODING))
 
 		elif l_line.startswith("///chat///"):
 			# for chat window
