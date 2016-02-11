@@ -4,15 +4,7 @@ import sys
 import os
 import argparse
 
-from modules import security
 from modules import connection
-
-
-class Client:
-	"""assist-client class"""
-
-	def __init__(self):
-		self.sec = security.Security()
 
 
 def main():

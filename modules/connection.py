@@ -7,6 +7,8 @@ import select
 import threading
 import re
 
+from . import security
+
 
 ENCODING = "utf-16"
 BUFFER_SIZE = 4096
@@ -25,6 +27,7 @@ class ServerConnection:
 	def __init__(self, host, port = 9876):
 		self.host = host
 		self.port = int(port)
+		self.sec = security.Security()
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.server.bind((self.host, self.port))
@@ -165,6 +168,7 @@ class ClientConnection:
 		self.connect_loop = True
 		self.host = host
 		self.port = int(port)
+		self.sec = security.Security()
 		self.username = username
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
