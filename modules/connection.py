@@ -24,10 +24,13 @@ class ServerConnection:
 	usernames = {}
 	usernames_reverse = {} # useful for reverse lookup
 	
-	def __init__(self, host, port = 9876):
+	def __init__(self, host, port = 9876, secure = True, bitlength = 4096):
 		self.host = host
 		self.port = int(port)
-		self.sec = security.Security()
+		if secure:
+			self.sec = security.Security("Server", bitlength)
+		else:
+			self.sec = None
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.server.bind((self.host, self.port))
@@ -163,13 +166,16 @@ class ClientConnection:
 
 	input_list = []
 	
-	def __init__(self, host, port = 9876, username = 'me'):
+	def __init__(self, host, port = 9876, username = 'me', secure = True, bitlength = 4096):
 		self.listen_loop = True
 		self.connect_loop = True
 		self.host = host
 		self.port = int(port)
-		self.sec = security.Security()
 		self.username = username
+		if secure:
+			self.sec = security.Security(self.username, bitlength)
+		else:
+			self.sec = None
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 		self.input_list.append(self.sock)

@@ -12,15 +12,16 @@ class Security:
 
 	KEY_PREFIX = "assist_"
 
-	def __init__(self, nodename, keypath = "./"):
+	def __init__(self, nodename, keylength, keypath = "./"):
 		self.nodename = str(nodename)
 		self.keypath = keypath
 		self.privkey = None
 		self.pubkey = None
+		self.keylength = keylength
 		self.receiver_keys = dict()
 	
-	def create_key_pair(self, keylength = 4096):
-		self.privkey = RSA.generate(keylength, Random.new().read)
+	def create_key_pair(self):
+		self.privkey = RSA.generate(self.keylength, Random.new().read)
 		with open(self.keypath + self.KEY_PREFIX + self.nodename + "_priv", "w") as fpriv:
 			fpriv.write(self.privkey.exportKey())
 		with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
