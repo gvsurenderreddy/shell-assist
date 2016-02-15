@@ -24,11 +24,11 @@ class ServerConnection:
 	usernames = {}
 	usernames_reverse = {} # useful for reverse lookup
 	
-	def __init__(self, host, port = 9876, secure = True, bitlength = 4096):
+	def __init__(self, host, port = 9876, secure = True, keylength = 4096):
 		self.host = host
 		self.port = int(port)
 		if secure:
-			self.sec = security.Security("Server", bitlength)
+			self.sec = security.Security("Server", keylength)
 		else:
 			self.sec = None
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -166,14 +166,19 @@ class ClientConnection:
 
 	input_list = []
 	
-	def __init__(self, host, port = 9876, username = 'me', secure = True, bitlength = 4096):
+	def __init__(self, host, port = 9876, username = 'me', secure = True, keylength = 4096):
 		self.listen_loop = True
 		self.connect_loop = True
 		self.host = host
 		self.port = int(port)
 		self.username = username
 		if secure:
-			self.sec = security.Security(self.username, bitlength)
+			self.sec = security.Security(self.username, keylength)
+			if self.sec.my_key_pair_exists():
+				self.sec.load_my_privkey()
+				self.sec.load_my_pubkey()
+			else:
+				self.sec.create_key_pair()
 		else:
 			self.sec = None
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target

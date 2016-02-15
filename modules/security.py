@@ -22,10 +22,16 @@ class Security:
 	
 	def create_key_pair(self):
 		self.privkey = RSA.generate(self.keylength, Random.new().read)
+		self.pubkey = self.privkey.publickey()
 		with open(self.keypath + self.KEY_PREFIX + self.nodename + "_priv", "w") as fpriv:
 			fpriv.write(self.privkey.exportKey())
 		with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
 			fpub.write(self.privkey.publickey().exportKey())
+
+	def my_key_pair_exists(self):
+		privfilename = self.keypath + self.KEY_PREFIX + self.nodename + "_priv"
+		pubfilename = self.keypath + self.KEY_PREFIX + self.nodename + ".pub"
+		return os.path.exists(privfilename) and os.path.exists(pubfilename)
 
 	def load_my_privkey(self):
 		keyfilename = self.keypath + self.KEY_PREFIX + self.nodename + "_priv"
