@@ -7,7 +7,8 @@ import select
 import threading
 import re
 
-from . import security
+from .security import Security
+from .utils import Utils
 
 
 ENCODING = "utf-16"
@@ -29,7 +30,7 @@ class ServerConnection:
 		self.host = host
 		self.port = int(port)
 		if secure:
-			self.sec = security.Security("Server", keylength)
+			self.sec = Security("Server", keylength)
 		else:
 			self.sec = None
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,17 +116,18 @@ class ServerConnection:
 
 		elif l_line.startswith("///chat///"):
 			# for chat window
-			parts = line.split("///")
-			if parts[2] in self.usernames:
-				self.usernames[parts[2]].sendall(bytes("///chat///{}///{}".format(
-					self.usernames_reverse[dest], parts[3]), ENCODING))
+			parts = Utils.split(line, "///", 3)
+			if parts[1] in self.usernames:
+				self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
+					self.usernames_reverse[dest], parts[2]), ENCODING))
 			else:
 				dest.sendall(bytes("///usernone///{}".format(parts[2]), ENCODING))
 
 		elif l_line.startswith("///pubkey///"):
-			parts = line.split("///")
+			parts = Utils.split(line, "///", 2)
 			rx_name = self.usernames_reverse[dest]
-			self.rx_pubkeys[rx_name] = self.sec.save_other_pubkey(parts[2], rx_name)
+			self.rx_pubkeys[rx_name] = self.sec.save_other_pubkey(parts[1], rx_name)
+			dest.sendall(bytes("///serverpubkey///{}".format(self.sec.pubkey.exportKey()), ENCODING))
 
 		elif l_line.startswith("/"):
 			# unrecognized command
@@ -181,7 +183,7 @@ class ClientConnection:
 		self.username = username
 
 		if secure:
-			self.sec = security.Security(self.username, keylength)
+			self.sec = Security(self.username, keylength)
 			if self.sec.my_key_pair_exists():
 				self.sec.load_my_privkey()
 				self.sec.load_my_pubkey()
@@ -234,15 +236,15 @@ class ClientConnection:
 			print("{}Name already in use.".format(self.prompt("Server")))
 
 		elif l_line.startswith("///chat///"):
-			parts = line.split("///")
-			print("{}{}".format(self.prompt(parts[2]), parts[3]))
+			parts = Utils.split(line, "///", 3)
+			print("{}{}".format(self.prompt(parts[1]), parts[2]))
 
 		elif l_line.startswith("///usernone///"):
 			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
 
 		elif l_line.startswith("///pubkey///"):
-			parts = line.split("///")
-			self.rx_pubkeys[parts[2]] = self.sec.save_other_pubkey(parts[3], parts[2])
+			parts = Utils.split(line, "///", 3)
+			self.rx_pubkeys[parts[1]] = self.sec.save_other_pubkey(parts[2], parts[1])
 
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
