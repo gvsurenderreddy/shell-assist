@@ -23,6 +23,7 @@ class ServerConnection:
 	channels = {}
 	usernames = {}
 	usernames_reverse = {} # useful for reverse lookup
+	rx_pubkeys = {}
 	
 	def __init__(self, host, port = 9876, secure = True, keylength = 4096):
 		self.host = host
@@ -121,6 +122,11 @@ class ServerConnection:
 			else:
 				dest.sendall(bytes("///usernone///{}".format(parts[2]), ENCODING))
 
+		elif l_line.startswith("///pubkey///"):
+			parts = line.split("///")
+			rx_name = self.usernames_reverse[dest]
+			self.rx_pubkeys[rx_name] = self.sec.save_other_pubkey(parts[2], rx_name)
+
 		elif l_line.startswith("/"):
 			# unrecognized command
 			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
@@ -165,6 +171,7 @@ class ClientConnection:
 	"""For client connection"""
 
 	input_list = []
+	rx_pubkeys = {}
 	
 	def __init__(self, host, port = 9876, username = 'me', secure = True, keylength = 4096):
 		self.listen_loop = True
@@ -172,7 +179,7 @@ class ClientConnection:
 		self.host = host
 		self.port = int(port)
 		self.username = username
-		self.rx_pubkeys = dict()
+
 		if secure:
 			self.sec = security.Security(self.username, keylength)
 			if self.sec.my_key_pair_exists():
@@ -182,6 +189,7 @@ class ClientConnection:
 				self.sec.create_key_pair()
 		else:
 			self.sec = None
+
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 		self.input_list.append(self.sock)
