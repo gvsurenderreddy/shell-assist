@@ -52,6 +52,11 @@ class Security:
 			except:
 				self.pubkey = None
 				print("Error: invalid public key.")
+		elif self.privkey:
+			self.pubkey = self.privkey.publickey()
+			with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
+				fpub.write(self.pubkey.exportKey())
+			return True
 
 	def load_other_pubkey(self, other):
 		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
@@ -62,6 +67,12 @@ class Security:
 			except:
 				self.receiver_keys[other] = None
 				print("Error: invalid public key.")
+
+	def save_other_pubkey(self, strkey, other):
+		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
+		with open(keyfilename, "w") as fpub:
+			fpub.write(strkey)
+		return RSA.importKey(strkey)
 
 	def encrypt(self, target, message):
 		if not target in self.receiver_keys:

@@ -172,6 +172,7 @@ class ClientConnection:
 		self.host = host
 		self.port = int(port)
 		self.username = username
+		self.rx_pubkeys = dict()
 		if secure:
 			self.sec = security.Security(self.username, keylength)
 			if self.sec.my_key_pair_exists():
@@ -197,6 +198,9 @@ class ClientConnection:
 
 	def send_name(self):
 		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
+
+	def send_pubkey(self):
+		self.sock.sendall(bytes("///pubkey///{}".format(self.sec.pubkey), ENCODING))
 
 	def prompt(self, name = ''):
 		if not name:
@@ -227,6 +231,10 @@ class ClientConnection:
 
 		elif l_line.startswith("///usernone///"):
 			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
+
+		elif l_line.startswith("///pubkey///"):
+			parts = line.split("///")
+			self.rx_pubkeys[parts[2]] = self.sec.save_other_pubkey(parts[3], parts[2])
 
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
@@ -279,6 +287,8 @@ class ClientConnection:
 			self.listening_thread.start()
 			print("{}Connected to server.".format(self.prompt("Client")))
 			self.send_name()
+			if self.sec:
+				self.send_pubkey()
 
 			while self.connect_loop:
 				if not self.sock:
