@@ -72,7 +72,8 @@ class Security:
 		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
 		with open(keyfilename, "w") as fpub:
 			fpub.write(strkey)
-		return RSA.importKey(strkey)
+		self.receiver_keys[other] = RSA.importKey(strkey)
+		return True
 
 	def encrypt(self, target, message):
 		if not target in self.receiver_keys:

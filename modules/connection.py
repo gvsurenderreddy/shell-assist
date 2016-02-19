@@ -121,12 +121,25 @@ class ServerConnection:
 				self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
 					self.usernames_reverse[dest], parts[2]), ENCODING))
 			else:
-				dest.sendall(bytes("///usernone///{}".format(parts[2]), ENCODING))
+				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
+
+		elif l_line.startswith("///schat///"):
+			# for chat window when client is using secure comm
+			parts = Utils.split(line, "///", 3)
+			if parts[1] in self.usernames:
+				dec_msg = self.sec.decrypt(parts[2])
+				enc_msg = self.sec.encrypt(parts[1], dec_msg)
+				self.usernames[parts[1]].sendall(bytes("///schat///{}///{}".format(
+					self.usernames_reverse[dest], enc_msg), ENCODING))
+			else:
+				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
 
 		elif l_line.startswith("///pubkey///"):
+			# receiving client pubkey
 			parts = Utils.split(line, "///", 2)
 			rx_name = self.usernames_reverse[dest]
-			self.rx_pubkeys[rx_name] = self.sec.save_other_pubkey(parts[1], rx_name)
+			if not self.sec.save_other_pubkey(parts[1], rx_name):
+				print("Error: could not store remote public key.")
 			dest.sendall(bytes("///serverpubkey///{}".format(self.sec.pubkey.exportKey()), ENCODING))
 
 		elif l_line.startswith("/"):
@@ -239,12 +252,22 @@ class ClientConnection:
 			parts = Utils.split(line, "///", 3)
 			print("{}{}".format(self.prompt(parts[1]), parts[2]))
 
+		elif l_line.startswith("///schat///"):
+			parts = Utils.split(line, "///", 3)
+			print("{}{}".format(self.prompt(parts[1]), self.sec.decrypt(parts[2])))
+
 		elif l_line.startswith("///usernone///"):
 			print("{}User '{}' is not online.".format(self.prompt("Server"), line[15:]))
 
 		elif l_line.startswith("///pubkey///"):
 			parts = Utils.split(line, "///", 3)
-			self.rx_pubkeys[parts[1]] = self.sec.save_other_pubkey(parts[2], parts[1])
+			if not self.sec.save_other_pubkey(parts[2], parts[1]):
+				print("Error: could not store remote public key.")
+
+		elif l_line.startswith("///serverpubkey///"):
+			parts = Utils.split(line, "///", 2)
+			if not self.sec.save_other_pubkey(parts[1], "Server"):
+				print("Error: could not store remote public key.")
 
 		elif line:
 			print("{}{}".format(self.prompt("Server"), line))
@@ -267,6 +290,10 @@ class ClientConnection:
 			args = line[6:].lstrip()
 			self.mode = ["chat", args]
 			line = ""
+
+		elif l_line.startswith("///chat///") and self.sec:
+			parts = Utils.split(line, "///", 3)
+			line = "///schat///{}///{}".format(parts[1], self.sec.encrypt("Server", parts[2]))
 
 		elif l_line.startswith("/shell ") or l_line.startswith("/shell\t"):
 			args = line[7:].lstrip()
