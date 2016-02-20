@@ -1,10 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 
 from Crypto import Random
 from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
+
+
+ENCODING = "utf-16"
 
 
 class Security:
@@ -21,11 +24,13 @@ class Security:
 		self.receiver_keys = dict()
 	
 	def create_key_pair(self):
+		print("Generating public/private key pair...")
 		self.privkey = RSA.generate(self.keylength, Random.new().read)
 		self.pubkey = self.privkey.publickey()
-		with open(self.keypath + self.KEY_PREFIX + self.nodename + "_priv", "w") as fpriv:
+		print("Key pair created.")
+		with open(self.keypath + self.KEY_PREFIX + self.nodename + "_priv", "wb") as fpriv:
 			fpriv.write(self.privkey.exportKey())
-		with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
+		with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "wb") as fpub:
 			fpub.write(self.privkey.publickey().exportKey())
 
 	def my_key_pair_exists(self):
@@ -37,7 +42,7 @@ class Security:
 		keyfilename = self.keypath + self.KEY_PREFIX + self.nodename + "_priv"
 		if os.path.exists(keyfilename):
 			try:
-				self.privkey = RSA.importKey(open(keyfilename, "r").read())
+				self.privkey = RSA.importKey(open(keyfilename, "rb").read())
 				return True
 			except:
 				self.privkey = None
@@ -47,14 +52,14 @@ class Security:
 		keyfilename = self.keypath + self.KEY_PREFIX + self.nodename + ".pub"
 		if os.path.exists(keyfilename):
 			try:
-				self.pubkey = RSA.importKey(open(keyfilename, "r").read())
+				self.pubkey = RSA.importKey(open(keyfilename, "rb").read())
 				return True
 			except:
 				self.pubkey = None
 				print("Error: invalid public key.")
 		elif self.privkey:
 			self.pubkey = self.privkey.publickey()
-			with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "w") as fpub:
+			with open(self.keypath + self.KEY_PREFIX + self.nodename + ".pub", "wb") as fpub:
 				fpub.write(self.pubkey.exportKey())
 			return True
 
@@ -62,7 +67,7 @@ class Security:
 		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
 		if os.path.exists(keyfilename):
 			try:
-				self.receiver_keys[other] = RSA.importKey(open(keyfilename, "r").read())
+				self.receiver_keys[other] = RSA.importKey(open(keyfilename, "rb").read())
 				return True
 			except:
 				self.receiver_keys[other] = None
@@ -70,7 +75,7 @@ class Security:
 
 	def save_other_pubkey(self, strkey, other):
 		keyfilename = self.keypath + self.KEY_PREFIX + other + ".pub"
-		with open(keyfilename, "w") as fpub:
+		with open(keyfilename, "wb") as fpub:
 			fpub.write(strkey)
 		self.receiver_keys[other] = RSA.importKey(strkey)
 		return True
