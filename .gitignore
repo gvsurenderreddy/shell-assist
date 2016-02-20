@@ -63,4 +63,4 @@ target/
 
 # public/private keys
 *.pub
-*_priv
+*.priv

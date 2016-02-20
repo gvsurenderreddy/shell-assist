@@ -30,7 +30,12 @@ class ServerConnection:
 		self.host = host
 		self.port = int(port)
 		if secure:
-			self.sec = Security("Server", keylength)
+			self.sec = Security("Server", keylength, True)
+			if self.sec.my_key_pair_exists():
+				self.sec.load_my_privkey()
+				self.sec.load_my_pubkey()
+			else:
+				self.sec.create_key_pair()
 		else:
 			self.sec = None
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -196,7 +201,7 @@ class ClientConnection:
 		self.username = username
 
 		if secure:
-			self.sec = Security(self.username, keylength)
+			self.sec = Security(self.username, keylength, False)
 			if self.sec.my_key_pair_exists():
 				self.sec.load_my_privkey()
 				self.sec.load_my_pubkey()
