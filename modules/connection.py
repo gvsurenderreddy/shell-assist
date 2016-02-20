@@ -145,7 +145,7 @@ class ServerConnection:
 			rx_name = self.usernames_reverse[dest]
 			if not self.sec.save_other_pubkey(parts[1], rx_name):
 				print("Error: could not store remote public key.")
-			dest.sendall(bytes("///serverpubkey///{}".format(self.sec.pubkey.exportKey()), ENCODING))
+			dest.sendall(bytes("///serverpubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
 
 		elif l_line.startswith("/"):
 			# unrecognized command
@@ -228,7 +228,7 @@ class ClientConnection:
 		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
 
 	def send_pubkey(self):
-		self.sock.sendall(bytes("///pubkey///{}".format(self.sec.pubkey), ENCODING))
+		self.sock.sendall(bytes("///pubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
 
 	def prompt(self, name = ''):
 		if not name:
