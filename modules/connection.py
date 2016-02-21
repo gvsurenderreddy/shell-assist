@@ -17,7 +17,20 @@ DELAY = 0.1
 MAX_CONNECTIONS = 100
 
 
-class ServerConnection:
+class Connection:
+	"""Base Connection class"""
+
+	def __init__(self, sock):
+		self.sock = sock
+
+	def send(self, dest, message):
+		try:
+			dest.sendall(bytes(message, ENCODING))
+		except Exception as e:
+			print(e)
+
+
+class ServerConnection(Connection):
 	"""For server connection and transmission of data"""
 
 	input_list = []
@@ -42,6 +55,7 @@ class ServerConnection:
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.server.bind((self.host, self.port))
 		self.server.listen(MAX_CONNECTIONS)
+		super().__init__(self.server)
 
 	def listening_loop(self):
 		print("Assist-Server starting...")
@@ -187,8 +201,8 @@ class ServerConnection:
 		return "[{}@{}]> ".format(name, addr)
 
 
-class ClientConnection:
-	"""For client connection"""
+class ClientConnection(Connection):
+	"""Class for client connection"""
 
 	input_list = []
 	rx_pubkeys = {}
@@ -213,6 +227,7 @@ class ClientConnection:
 		self.mode = ["", ""] # the first is the mode ("", "chat", "shell" or "file") and the second is the target
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create TCP socket
 		self.input_list.append(self.sock)
+		super().__init__(self.sock)
 
 	def listen_receive(self):
 		readlist, writelist, exceptlist = select.select(self.input_list, [], [], DELAY)
