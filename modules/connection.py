@@ -15,17 +15,35 @@ ENCODING = "utf-16"
 BUFFER_SIZE = 4096
 DELAY = 0.1
 MAX_CONNECTIONS = 100
+MSG_END = 5 * chr(0)
 
 
 class Connection:
 	"""Base Connection class"""
 
 	def __init__(self, sock):
+		self.buffer = ""
 		self.sock = sock
 
 	def send(self, dest, message):
 		try:
-			dest.sendall(bytes(message, ENCODING))
+			dest.sendall(bytes("{}{}".format(message, MSG_END), ENCODING))
+		except Exception as e:
+			print(e)
+
+	def receive(self, dest):
+		try:
+			data = dest.recv(BUFFER_SIZE)
+			if self.buffer:
+				data = self.buffer + data
+				self.buffer = ""
+			end_found = data.find(MSG_END)
+			if end_found != -1:
+				if len(data) > end_found + len(end_found):
+					self.buffer = data[end_found+len(end_found):]
+				return data[:end_found]
+			else:
+				self.buffer = data
 		except Exception as e:
 			print(e)
 
