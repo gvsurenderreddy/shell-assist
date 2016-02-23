@@ -86,7 +86,8 @@ class ServerConnection(Connection):
 					if ready_server == self.server:
 						self.on_accept()
 						break
-					self.data = ready_server.recv(BUFFER_SIZE)
+					self.data = self.receive(ready_server)
+					#self.data = ready_server.recv(BUFFER_SIZE)
 					if len(self.data):
 						self.on_recv(ready_server)
 					else:
@@ -269,7 +270,8 @@ class ClientConnection(Connection):
 				break
 			for input_ready in readlist:
 				if input_ready == self.sock:
-					self.data = self.sock.recv(BUFFER_SIZE)
+					self.data = self.receive(self.sock)
+					#self.data = self.sock.recv(BUFFER_SIZE)
 					self.client_parse_recv_command(self.data.decode(ENCODING))
 
 	def send_name(self):
