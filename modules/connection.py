@@ -43,7 +43,7 @@ class Connection:
 					self.buffer = data[end_found+len(end_found):]
 				return data[:end_found]
 			else:
-				self.buffer = data
+				self.buffer += data
 		except Exception as e:
 			print(e)
 
@@ -115,14 +115,16 @@ class ServerConnection(Connection):
 				self.usernames_reverse[dest] = name
 				old_name = self.usernames_reverse[dest]
 				del self.usernames[old_name]
-				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
+				self.send(dest, "///nameack///{}".format(name))
+				#dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} changed name to '{}'.".format(self.channels[dest], name))
 
 			elif name not in self.usernames:
 				# client choosing name upon connect
 				self.usernames[name] = dest
 				self.usernames_reverse[dest] = name
-				dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
+				self.send(dest, "///nameack///{}".format(name))
+				#dest.sendall(bytes("///nameack///{}".format(name), ENCODING))
 				print("Client {} has identified as '{}'.".format(self.channels[dest], name))
 
 			elif dest not in self.usernames_reverse:
@@ -130,18 +132,21 @@ class ServerConnection(Connection):
 				name = self.generate_guestname()
 				self.usernames[name] = dest
 				self.usernames_reverse[dest] = name
-				dest.sendall(bytes("///nameguest///{}".format(name), ENCODING))
+				self.send(dest, "///nameguest///{}".format(name))
+				#dest.sendall(bytes("///nameguest///{}".format(name), ENCODING))
 				print("Client {} force-changed name to '{}'.".format(self.channels[dest], name))
 
 			else:
 				# name already taken
-				dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
+				self.send(dest, "///namedenied///{}".format(name))
+				#dest.sendall(bytes("///namedenied///{}".format(name), ENCODING))
 
 		elif l_line == "///list///":
 			output = "List of online users:"
 			for user in self.usernames:
 				output += "\n" + user
-			dest.sendall(bytes(output, ENCODING))
+			self.send(dest, output)
+			#dest.sendall(bytes(output, ENCODING))
 
 		elif l_line.startswith("///listpattern///"):
 			line = "^" + line[17:].replace("*", ".*") + "$"
@@ -149,16 +154,20 @@ class ServerConnection(Connection):
 			for user in self.usernames:
 				if re.match(line, user, re.IGNORECASE):
 					output += "\n" + user
-			dest.sendall(bytes(output, ENCODING))
+			self.send(dest, output)
+			#dest.sendall(bytes(output, ENCODING))
 
 		elif l_line.startswith("///chat///"):
 			# for chat window
 			parts = Utils.split(line, "///", 3)
 			if parts[1] in self.usernames:
-				self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
-					self.usernames_reverse[dest], parts[2]), ENCODING))
+				self.send(self.usernames[parts[1]], "///chat///{}///{}".format(
+					self.usernames_reverse[dest], parts[2]))
+				#self.usernames[parts[1]].sendall(bytes("///chat///{}///{}".format(
+				#	self.usernames_reverse[dest], parts[2]), ENCODING))
 			else:
-				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
+				self.send(dest, "///usernone///{}".format(parts[1]))
+				#dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
 
 		elif l_line.startswith("///schat///"):
 			# for chat window when client is using secure comm
@@ -166,10 +175,13 @@ class ServerConnection(Connection):
 			if parts[1] in self.usernames:
 				dec_msg = self.sec.decrypt(parts[2])
 				enc_msg = self.sec.encrypt(parts[1], dec_msg)
-				self.usernames[parts[1]].sendall(bytes("///schat///{}///{}".format(
-					self.usernames_reverse[dest], enc_msg), ENCODING))
+				self.send(self.usernames[parts[1]], "///schat///{}///{}".format(
+					self.usernames_reverse[dest], enc_msg))
+				#self.usernames[parts[1]].sendall(bytes("///schat///{}///{}".format(
+				#	self.usernames_reverse[dest], enc_msg), ENCODING))
 			else:
-				dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
+				self.send(dest, "///usernone///{}".format(parts[1]))
+				#dest.sendall(bytes("///usernone///{}".format(parts[1]), ENCODING))
 
 		elif l_line.startswith("///pubkey///"):
 			# receiving client pubkey
@@ -177,11 +189,13 @@ class ServerConnection(Connection):
 			rx_name = self.usernames_reverse[dest]
 			if not self.sec.save_other_pubkey(parts[1], rx_name):
 				print("Error: could not store remote public key.")
-			dest.sendall(bytes("///serverpubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
+			self.send(dest, "///serverpubkey///{}".format(str(self.sec.pubkey.exportKey())))
+			#dest.sendall(bytes("///serverpubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
 
 		elif l_line.startswith("/"):
 			# unrecognized command
-			dest.sendall(bytes("///error///unrecognized command.", ENCODING))
+			self.send(dest, "///error///unrecognized command.")
+			#dest.sendall(bytes("///error///unrecognized command.", ENCODING))
 
 		else:
 			# not a command
@@ -192,7 +206,8 @@ class ServerConnection(Connection):
 		self.input_list.append(client_sock)
 		self.channels[client_sock] = client_addr
 		print("Client {} has connected.".format(client_addr))
-		client_sock.sendall(bytes("Welcome.", ENCODING))
+		self.send(client_sock, "Welcome.")
+		#client_sock.sendall(bytes("Welcome.", ENCODING))
 
 	def on_recv(self, dest):
 		self.data = self.data.decode(ENCODING)
@@ -258,10 +273,12 @@ class ClientConnection(Connection):
 					self.client_parse_recv_command(self.data.decode(ENCODING))
 
 	def send_name(self):
-		self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
+		self.send(self.sock, "/setname {}".format(self.username))
+		#self.sock.sendall(bytes("/setname {}".format(self.username), ENCODING))
 
 	def send_pubkey(self):
-		self.sock.sendall(bytes("///pubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
+		self.send(self.sock, "///pubkey///{}".format(str(self.sec.pubkey.exportKey())))
+		#self.sock.sendall(bytes("///pubkey///{}".format(str(self.sec.pubkey.exportKey())), ENCODING))
 
 	def prompt(self, name = ''):
 		if not name:
@@ -351,7 +368,8 @@ class ClientConnection(Connection):
 				appended_line = "///chat///{}///".format(self.mode[1]) + line
 			else:
 				appended_line = line
-			sock.sendall(bytes(appended_line, ENCODING))
+			self.send(sock, appended_line)
+			#sock.sendall(bytes(appended_line, ENCODING))
 
 	def connect_to_server(self):
 		try:
