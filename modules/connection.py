@@ -46,6 +46,7 @@ class Connection:
 				self.buffer += data
 		except Exception as e:
 			print(e)
+			raise
 
 
 class ServerConnection(Connection):
@@ -272,7 +273,8 @@ class ClientConnection(Connection):
 				if input_ready == self.sock:
 					self.data = self.receive(self.sock)
 					#self.data = self.sock.recv(BUFFER_SIZE)
-					self.client_parse_recv_command(self.data.decode(ENCODING))
+					if self.data:
+						self.client_parse_recv_command(self.data.decode(ENCODING))
 
 	def send_name(self):
 		self.send(self.sock, "/setname {}".format(self.username))
