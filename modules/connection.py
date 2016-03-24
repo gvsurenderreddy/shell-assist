@@ -34,6 +34,7 @@ class Connection:
 	def receive(self, dest):
 		try:
 			data = dest.recv(BUFFER_SIZE)
+			data = str(data)
 			if self.buffer:
 				data = self.buffer + data
 				self.buffer = ""
@@ -46,7 +47,6 @@ class Connection:
 				self.buffer += data
 		except Exception as e:
 			print(e)
-			raise
 
 
 class ServerConnection(Connection):
@@ -89,11 +89,11 @@ class ServerConnection(Connection):
 						break
 					self.data = self.receive(ready_server)
 					#self.data = ready_server.recv(BUFFER_SIZE)
-					if len(self.data):
+					if self.data:
 						self.on_recv(ready_server)
-					else:
-						self.on_close(ready_server)
-						break
+#					else:
+#						self.on_close(ready_server)
+#						break
 			except ConnectionRefusedError:
 				print("Client has disconnected!")
 			except Exception as e:
