@@ -40,8 +40,8 @@ class Connection:
 				self.buffer = ""
 			end_found = data.find(MSG_END)
 			if end_found != -1:
-				if len(data) > end_found + len(end_found):
-					self.buffer = data[end_found+len(end_found):]
+				if len(data) > end_found + len(MSG_END):
+					self.buffer = data[end_found+len(MSG_END):]
 				return data[:end_found]
 			else:
 				self.buffer += data
